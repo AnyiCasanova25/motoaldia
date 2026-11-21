@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MotoAlDía – prototipo interactivo</title>
+<style>
+  :root{--teal:#0f5c5c;--teal2:#0b4747;--amber:#f2a900;--bg:#e9e3d8;--in:#fff;--out:#d9fdd3;--ink:#1b2b2d;--mut:#6b7b7d}
+  *{box-sizing:border-box}
+  body{margin:0;background:#cfd8d6;font-family:Calibri,Segoe UI,Arial,sans-serif;color:var(--ink);display:flex;justify-content:center}
+  .tel{width:100%;max-width:430px;height:100vh;height:100dvh;background:var(--bg);display:flex;flex-direction:column;box-shadow:0 0 30px #0003}
+  header{background:var(--teal);color:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px}
+  .av{width:38px;height:38px;border-radius:50%;background:var(--amber);color:var(--teal2);font-weight:700;display:flex;align-items:center;justify-content:center}
+  header b{display:block;font-size:16px} header small{opacity:.85;font-size:12px}
+  #chat{flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:8px}
+  .m{max-width:82%;padding:8px 11px;border-radius:10px;font-size:15px;line-height:1.35;white-space:pre-wrap;box-shadow:0 1px 1px #0002;animation:up .25s ease}
+  .in{background:var(--in);align-self:flex-start;border-top-left-radius:2px}
+  .out{background:var(--out);align-self:flex-end;border-top-right-radius:2px}
+  .nota{align-self:center;background:#fff8;color:var(--mut);font-size:12px;padding:4px 10px;border-radius:8px}
+  @keyframes up{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+  #acc{padding:10px 12px;background:#f4f1ea;display:flex;flex-wrap:wrap;gap:8px;border-top:1px solid #0001;min-height:64px;align-items:center}
+  button{font:inherit;font-size:14.5px;border:1.5px solid var(--teal);background:#fff;color:var(--teal);padding:8px 13px;border-radius:18px;cursor:pointer}
+  button:hover{background:var(--teal);color:#fff}
+  .ent{display:flex;gap:8px;width:100%}
+  .ent input{flex:1;font:inherit;font-size:16px;padding:9px 12px;border:1.5px solid #bbb;border-radius:18px;text-transform:uppercase}
+  .ent button{background:var(--teal);color:#fff}
+  .pie{font-size:11px;color:var(--mut);text-align:center;padding:4px 8px 8px;background:#f4f1ea}
+</style>
+</head>
+<body>
+<div class="tel">
+  <header><div class="av">M</div><div><b>MotoAlDía</b><small>asistente de tu moto · prototipo</small></div></header>
+  <div id="chat"></div>
+  <div id="acc"></div>
+  <div class="pie">Prototipo de validación. Los datos y precios son de ejemplo. No se envía nada a ningún servidor.</div>
+</div>
+<script>
+const chat=document.getElementById('chat'), acc=document.getElementById('acc');
+let motos=[], actual={}, retraso=550;
+const esp=ms=>new Promise(r=>setTimeout(r,ms));
+function msg(t,c='in'){const d=document.createElement('div');d.className='m '+c;d.textContent=t;chat.appendChild(d);chat.scrollTop=chat.scrollHeight}
+function nota(t){const d=document.createElement('div');d.className='nota';d.textContent=t;chat.appendChild(d);chat.scrollTop=chat.scrollHeight}
+async function bot(t){acc.innerHTML='';await esp(retraso);msg(t,'in')}
+function botones(lista){acc.innerHTML='';lista.forEach(([txt,fn])=>{const b=document.createElement('button');b.textContent=txt;b.onclick=()=>{msg(txt,'out');fn()};acc.appendChild(b)})}
+function entrada(ph,fn){acc.innerHTML='';const f=document.createElement('div');f.className='ent';
+  const i=document.createElement('input');i.placeholder=ph;i.maxLength=7;const b=document.createElement('button');b.textContent='Enviar';
+  const ir=()=>{const v=i.value.trim().toUpperCase();if(!v)return;msg(v,'out');fn(v)};b.onclick=ir;i.onkeydown=e=>{if(e.key==='Enter')ir()};
+  f.append(i,b);acc.appendChild(f);i.focus()}
+
+async function inicio(){
+  chat.innerHTML='';motos=[];actual={};
+  nota('Hoy');
+  await bot('Hola 👋 Soy MotoAlDía.\nNo vendo SOAT: te aviso antes de que se venza el SOAT, la tecnomecánica o el mantenimiento de tu moto.');
+  await bot('Para empezar, escribe la placa de tu moto. Es de ejemplo, no se guarda.');
+  entrada('Ej: ABC12D',placa)}
+
+async function placa(p){
+  actual={placa:p};
+  await bot('Perfecto, placa '+p+'.\n¿Cuándo vence tu SOAT?');
+  botones([['Vence en menos de 15 días',()=>soat('pronto')],['Ya está vencido',()=>soat('vencido')],['Todavía falta mucho',()=>soat('falta')],['No sé',()=>soat('nose')]])}
+
+async function soat(e){
+  if(e==='nose'){
+    await bot('No hay problema. La fecha está en tu SOAT (en la app de tu aseguradora o en el papel) y también en el RUNT con la placa.\n¿Quieres que te lo recuerde en 3 días?');
+    botones([['Sí, recuérdame en 3 días',async()=>{actual.soat='sin fecha';await bot('Listo, te escribo en 3 días. Mientras tanto sigamos con la tecnomecánica.');tecno()}],['Ya la encontré',()=>soat('pronto')]]);return}
+  actual.soat={pronto:'en menos de 15 días',vencido:'vencido',falta:'dentro de varios meses'}[e];
+  if(e==='vencido') await bot('⚠️ Con el SOAT vencido te pueden inmovilizar la moto y multar. Te recomiendo renovarlo hoy.\nTe insisto cada 3 días hasta que renueves.');
+  else await bot('Anotado: tu SOAT vence '+actual.soat+'.');
+  tecno()}
+
+async function tecno(){
+  await bot('¿Y la tecnomecánica?');
+  botones([['Vence pronto',()=>t2('pronto')],['Ya está vencida',()=>t2('vencida')],['Falta mucho',()=>t2('falta')],['No sé',()=>t2('nose')]])}
+
+async function t2(e){
+  actual.tec={pronto:'pronto',vencida:'vencida',falta:'dentro de varios meses',nose:'sin fecha'}[e];
+  motos.push(actual);
+  await bot('✅ Listo. Registré la moto '+actual.placa+'.\nTe aviso a los 15, 7 y 1 día antes de cada vencimiento. Cuando renueves, respóndeme «Ya renové».');
+  menu()}
+
+async function menu(){
+  await bot('¿Qué quieres hacer ahora?');
+  botones([['Ver cómo llega un aviso',aviso],['Agregar otra moto',otra],['Ver lo que pagué y lo que me falta',resumen],['Empezar de nuevo',inicio]])}
+
+async function otra(){await bot('Escribe la placa de la otra moto.');entrada('Ej: XYZ34E',async p=>{actual={placa:p,soat:'en menos de 15 días',tec:'dentro de varios meses'};motos.push(actual);await bot('✅ Agregué la moto '+p+'. Ahora tienes '+motos.length+' motos con avisos activos.');menu()})}
+
+async function aviso(){
+  nota('Así llegaría un aviso, 15 días antes');
+  await bot('🔔 Tu SOAT vence en 15 días (moto '+motos[motos.length-1].placa+').\n¿Qué quieres hacer?');
+  botones([['Sí, envíame el enlace',async()=>{await bot('Aquí tienes el enlace para comprar el SOAT directamente con una aseguradora autorizada (en el prototipo es un enlace de ejemplo):\nhttps://ejemplo.com/soat\n\nCuando pagues, escríbeme «Ya renové».');botones([['Ya renové',renove],['Recuérdame en 3 días',tres]])}],['Recuérdame en 3 días',tres],['Ya renové',renove]])}
+
+async function tres(){await bot('Va. Te insisto en 3 días y así hasta que renueves.');menu()}
+async function renove(){await bot('🎉 Actualicé la fecha. Quedas con el SOAT al día y te volveré a avisar el año que viene.');menu()}
+
+async function resumen(){
+  await bot('Resumen del año (según lo que registraste, con cifras de ejemplo):\n\nSOAT: $ 330.000\nTecnomecánica: $ 260.000\nMantenimiento: $ 900.000\nTotal: $ 1.490.000\n\nPara apartar cada mes: $ 124.000');
+  botones([['¿De dónde salen estos números?',async()=>{await bot('Salen de los valores que registraste y de promedios de ejemplo. En la versión real se muestran solo tus datos.');menu()}],['Volver al menú',menu]])}
+
+inicio();
+</script>
+</body>
+</html>
