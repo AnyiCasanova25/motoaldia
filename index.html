@@ -48,10 +48,10 @@ function entrada(ph,fn){acc.innerHTML='';const f=document.createElement('div');f
   f.append(i,b);acc.appendChild(f);i.focus()}
 
 async function inicio(){
-  chat.innerHTML='';motos=[];actual={};
+  chat.innerHTML='';motos=[];actual={};gastos.aceite=null;
   nota('Hoy');
   await bot('Hola 👋 Soy MotoAlDía.\nNo vendo SOAT: te aviso antes de que se venza el SOAT, la tecnomecánica o el mantenimiento de tu moto.');
-  await bot('Para empezar, escribe la placa de tu moto. Es de ejemplo, no se guarda.');
+  await bot('Te pido solo 3 datos: la placa, la fecha del SOAT y la de la tecnomecánica. Es de ejemplo, no se guarda.\n\nPrimero, escribe la placa de tu moto.');
   entrada('Ej: ABC12D',placa)}
 
 async function placa(p){
@@ -62,7 +62,7 @@ async function placa(p){
 async function soat(e){
   if(e==='nose'){
     await bot('No hay problema. La fecha está en tu SOAT (en la app de tu aseguradora o en el papel) y también en el RUNT con la placa.\n¿Quieres que te lo recuerde en 3 días?');
-    botones([['Sí, recuérdame en 3 días',async()=>{actual.soat='sin fecha';await bot('Listo, te escribo en 3 días. Mientras tanto sigamos con la tecnomecánica.');tecno()}],['Ya la encontré',()=>soat('pronto')]]);return}
+    botones([['Sí, recuérdame en 3 días',async()=>{actual.soat='sin fecha';await bot('Listo: en 3 días te escribo para recordarte que busques la fecha del SOAT. Mientras tanto sigamos con la tecnomecánica.');tecno()}],['Ya la encontré',()=>soat('pronto')]]);return}
   actual.soat={pronto:'en menos de 15 días',vencido:'vencido',falta:'dentro de varios meses'}[e];
   if(e==='vencido') await bot('⚠️ Con el SOAT vencido te pueden inmovilizar la moto y multar. Te recomiendo renovarlo hoy.\nTe insisto cada 3 días hasta que renueves.');
   else await bot('Anotado: tu SOAT vence '+actual.soat+'.');
@@ -78,23 +78,34 @@ async function t2(e){
   await bot('✅ Listo. Registré la moto '+actual.placa+'.\nTe aviso a los 15, 7 y 1 día antes de cada vencimiento. Cuando renueves, respóndeme «Ya renové».');
   menu()}
 
+let gastos={soat:330000,tecno:190000,aceite:null};
+const $=n=>'$ '+n.toLocaleString('es-CO');
 async function menu(){
   await bot('¿Qué quieres hacer ahora?');
-  botones([['Ver cómo llega un aviso',aviso],['Agregar otra moto',otra],['Ver lo que pagué y lo que me falta',resumen],['Empezar de nuevo',inicio]])}
+  botones([['Ver cómo llega un aviso',aviso],['Agregar otra moto',otra],['Ver mi resumen del año',resumen],['Empezar de nuevo',inicio]])}
 
-async function otra(){await bot('Escribe la placa de la otra moto.');entrada('Ej: XYZ34E',async p=>{actual={placa:p,soat:'en menos de 15 días',tec:'dentro de varios meses'};motos.push(actual);await bot('✅ Agregué la moto '+p+'. Ahora tienes '+motos.length+' motos con avisos activos.');menu()})}
+async function otra(){
+  await bot('Tu moto '+motos[motos.length-1].placa+' sigue registrada. Escribe la placa de la otra moto.');
+  entrada('Ej: XYZ34E',async p=>{actual={placa:p,soat:'en menos de 15 días',tecno:'dentro de varios meses'};motos.push(actual);await bot('✅ Agregué la moto '+p+'. Ahora tienes '+motos.length+' motos con avisos activos, cada una con sus fechas.');menu()})}
 
 async function aviso(){
   nota('Así llegaría un aviso, 15 días antes');
-  await bot('🔔 Tu SOAT vence en 15 días (moto '+motos[motos.length-1].placa+').\n¿Qué quieres hacer?');
-  botones([['Sí, envíame el enlace',async()=>{await bot('Aquí tienes el enlace para comprar el SOAT directamente con una aseguradora autorizada (en el prototipo es un enlace de ejemplo):\nhttps://ejemplo.com/soat\n\nCuando pagues, escríbeme «Ya renové».');botones([['Ya renové',renove],['Recuérdame en 3 días',tres]])}],['Recuérdame en 3 días',tres],['Ya renové',renove]])}
+  await bot('🔔 Tu SOAT vence en 15 días (15/03/2027), moto '+motos[motos.length-1].placa+'.\n¿Qué quieres hacer?');
+  botones([['Sí, envíame el enlace',async()=>{await bot('Aquí tienes el enlace para comprar el SOAT directamente con una aseguradora autorizada (en el prototipo es un enlace de ejemplo):\nhttps://ejemplo.com/soat\n\nCuando pagues, toca «Ya renové».');botones([['Ya renové',renove],['Recuérdame en 3 días',tres]])}],['Recuérdame en 3 días',tres],['Ya renové',renove]])}
 
-async function tres(){await bot('Va. Te insisto en 3 días y así hasta que renueves.');menu()}
-async function renove(){await bot('🎉 Actualicé la fecha. Quedas con el SOAT al día y te volveré a avisar el año que viene.');menu()}
+async function tres(){await bot('Va. Te dejo tranquilo 3 días y vuelvo a escribirte. Si después no me respondes, te insisto cada 3 días hasta que renueves.');menu()}
+async function renove(){await bot('🎉 Actualicé la fecha. Tu próximo aviso es del SOAT en marzo de 2028: lo calculo un año después, porque el SOAT dura un año. Ya no te insisto más por este vencimiento.');menu()}
 
+function total(){return gastos.soat+gastos.tecno+(gastos.aceite||0)}
 async function resumen(){
-  await bot('Resumen del año (según lo que registraste, con cifras de ejemplo):\n\nSOAT: $ 330.000\nTecnomecánica: $ 260.000\nMantenimiento: $ 900.000\nTotal: $ 1.490.000\n\nPara apartar cada mes: $ 124.000');
-  botones([['¿De dónde salen estos números?',async()=>{await bot('Salen de los valores que registraste y de promedios de ejemplo. En la versión real se muestran solo tus datos.');menu()}],['Volver al menú',menu]])}
+  await bot('Tu resumen del año (cifras de ejemplo):\n\nYa pagaste:\nSOAT: '+$(gastos.soat)+'\n\nTe falta:\nTecnomecánica: '+$(gastos.tecno)+' (vence en abril de 2027)\n\nAceite y repuestos: '+(gastos.aceite?$(gastos.aceite):'aún no lo has registrado')+'\n\nTotal registrado: '+$(total())+'\n\nPara no quedarte corto: aparta unos '+$(gastos.tecno)+' antes de abril de 2027. Es un cálculo para que lo guardes tú; yo no recibo ni guardo dinero.');
+  botones([['Anotar lo que gasté en aceite',aceite],['¿De dónde salen estos números?',origen],['Ver el detalle: SOAT, tecno y aceite',detalle],['Volver al menú',menu]])}
+async function origen(){await bot('Solo sumo lo que tú me has contado. Los precios de SOAT y tecnomecánica son de ejemplo; el del aceite aparece cuando tú lo anotas. Nunca invento un gasto que no registraste.');resumenBotones()}
+function resumenBotones(){botones([['Anotar lo que gasté en aceite',aceite],['Ver el detalle: SOAT, tecno y aceite',detalle],['Volver al menú',menu]])}
+async function detalle(){await bot('Detalle:\n• SOAT: pagado, '+$(gastos.soat)+'\n• Tecnomecánica: pendiente, '+$(gastos.tecno)+', vence en abril de 2027\n• Aceite y repuestos: '+(gastos.aceite?'registrado, '+$(gastos.aceite):'sin registrar'));resumenBotones()}
+async function aceite(){await bot('¿Cuánto has gastado este año en aceite y repuestos? Escribe solo el número.');
+  entrada('Ej: 150000',async v=>{const n=parseInt(v.replace(/\D/g,''),10);if(!n){await bot('No entendí el número. Escríbelo sin puntos, por ejemplo 150000.');return aceite()}
+    gastos.aceite=n;await bot('Anotado: aceite y repuestos '+$(n)+'. Tu total registrado ahora es '+$(total())+'.');resumenBotones()})}
 
 inicio();
 </script>
